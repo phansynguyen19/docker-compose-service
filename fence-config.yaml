@@ -170,8 +170,8 @@ OPENID_CONNECT:
   # whatever you set it to above.
   google:
     discovery_url: 'https://accounts.google.com/.well-known/openid-configuration'
-    client_id: '1016594188217-s6lcgu62u9krallhfs1mtnk06tho0f06.apps.googleusercontent.com'
-    client_secret: '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'
+    client_id: ''
+    client_secret: ''
     # this is be the allowed redirect back to fence, should not need to change
     # redirect_url: 'http://127.0.0.1:5000/login/google/login/'
     redirect_url: '{{BASE_URL}}/login/google/login/'
