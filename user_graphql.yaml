@@ -1,0 +1,229 @@
+authz:
+  anonymous_policies: []
+
+  all_users_policies:
+    - graphql-viewer
+
+  groups:
+    - name: super_admins
+      description: 'Super admin - full GraphQL access and Fence admin'
+      policies:
+        - super_admin_policy
+        - graphql-admin-policy
+      users:
+        - phansynguyen19@gmail.com
+
+    - name: developers
+      description: 'Developers - can read and create via GraphQL'
+      policies:
+        - graphql-developer-policy
+      users: []
+
+    - name: default_group
+      description: 'Default group - can view via GraphQL'
+      policies:
+        - graphql-viewer
+      users: []
+
+  resources:
+    # Services - for Fence admin access
+    - name: services
+      subresources:
+        - name: fence
+          subresources:
+            - name: admin
+
+    # GraphQL API resources
+    - name: graphql
+      subresources:
+        # Asset service (from asset.graphql)
+        - name: asset
+          subresources:
+            - name: query
+              subresources:
+                - name: getAsset
+                - name: findAsset
+                - name: findAssets
+            - name: mutation
+              subresources:
+                - name: createAssetFromUpload
+                - name: createAssetsFromUpload
+                - name: createAssetFromUrl
+                - name: createAssetsFromUrls
+                - name: deleteAsset
+
+        # Auth service (from auth.graphql)
+        - name: auth
+          subresources:
+            - name: query
+            - name: mutation
+
+        # Location service (from location.graphql)
+        - name: location
+          subresources:
+            - name: query
+              subresources:
+                - name: getLocation
+                - name: findLocations
+            - name: mutation
+              subresources:
+                - name: createLocation
+                - name: updateLocation
+
+        # Order service (from order.graphql)
+        - name: order
+          subresources:
+            - name: query
+              subresources:
+                - name: getOrder
+                - name: findOrders
+                - name: myOrders
+            - name: mutation
+              subresources:
+                - name: createOrder
+                - name: updateOrder
+                - name: cancelOrder
+
+        # Payment service (from payment.graphql)
+        - name: payment
+          subresources:
+            - name: query
+            - name: mutation
+
+        # Product service (from product.graphql)
+        - name: product
+          subresources:
+            - name: query
+              subresources:
+                - name: getProduct
+                - name: findProducts
+                - name: searchProducts
+            - name: mutation
+              subresources:
+                - name: createProduct
+                - name: updateProduct
+                - name: deleteProduct
+
+        # Search service (from search.graphql)
+        - name: search
+          subresources:
+            - name: query
+            - name: mutation
+
+  policies:
+    # Super Admin - Fence admin access
+    - id: super_admin_policy
+      description: 'Super admin - full system access'
+      role_ids:
+        - admin
+      resource_paths:
+        - /services/fence/admin
+    # ==== CLIENT ADMIN POLICY ====
+    - id: client_admin_policy
+      description: 'Allow OAuth client to call Fence admin APIs'
+      role_ids:
+        - admin
+      resource_paths:
+        - /services/fence/admin
+    # GraphQL Admin - Full GraphQL access
+    - id: graphql-admin-policy
+      description: 'Full access to GraphQL API'
+      role_ids:
+        - graphql_admin
+      resource_paths:
+        - /graphql
+
+    # GraphQL Developer
+    - id: graphql-developer-policy
+      description: 'Developer access to GraphQL API'
+      role_ids:
+        - graphql_reader
+        - graphql_creator
+      resource_paths:
+        - /graphql/asset/query
+        - /graphql/asset/mutation/createAssetFromUpload
+        - /graphql/asset/mutation/createAssetsFromUpload
+        - /graphql/location/query
+        - /graphql/product/query
+        - /graphql/order/query
+
+    # GraphQL Viewer - Read-only (default for all users)
+    - id: graphql-viewer
+      description: 'Read-only access to GraphQL queries'
+      role_ids:
+        - graphql_reader
+      resource_paths:
+        - /graphql/asset/query
+        - /graphql/location/query
+        - /graphql/product/query
+        - /graphql/order/query
+
+  roles:
+    # Admin role - full system access
+    - id: admin
+      description: 'Super admin - full system access'
+      permissions:
+        - id: admin_all
+          action:
+            method: '*'
+            service: '*'
+
+    # GraphQL roles
+    - id: graphql_admin
+      description: 'Full access to GraphQL operations'
+      permissions:
+        - id: graphql_all
+          action:
+            service: graphql
+            method: '*'
+
+    - id: graphql_reader
+      description: 'Read access to GraphQL queries'
+      permissions:
+        - id: graphql_read
+          action:
+            service: graphql
+            method: read
+
+    - id: graphql_creator
+      description: 'Create data via GraphQL'
+      permissions:
+        - id: graphql_create
+          action:
+            service: graphql
+            method: create
+
+    - id: graphql_updater
+      description: 'Update data via GraphQL'
+      permissions:
+        - id: graphql_update
+          action:
+            service: graphql
+            method: update
+
+    - id: graphql_deleter
+      description: 'Delete data via GraphQL'
+      permissions:
+        - id: graphql_delete
+          action:
+            service: graphql
+            method: delete
+
+# OIDC clients
+clients:
+  fe_client:
+    policies:
+      - client_admin_policy
+      - graphql-viewer
+      - graphql-developer-policy
+      - graphql-admin-policy
+
+users:
+  phansynguyen19@gmail.com:
+    tags:
+      name: 'System Administrator'
+      email: phansynguyen19@gmail.com
+      role: admin
+    policies:
+      - super_admin_policy
+      - graphql-admin-policy

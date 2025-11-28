@@ -1,0 +1,36 @@
+# Secrets and Credentials
+Secrets/
+.env
+
+# Keys (generated)
+keys/
+*.pem
+*.key
+*.crt
+*.csr
+
+# Database backups (but keep init.sql)
+backup_*.sql
+!init.sql
+
+# Docker volumes
+postgres_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+temp/
+tmp/

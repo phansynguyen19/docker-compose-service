@@ -1,0 +1,122 @@
+version: "3.9"
+
+services:
+  gen3-postgres:
+    image: postgres:15
+    container_name: gen3-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - gen3-network
+
+  fence-service:
+    image: phansynguyen19/fence-custom:v1
+    container_name: fence-service
+    depends_on:
+      gen3-postgres:
+        condition: service_healthy
+      arborist-service:
+        condition: service_started
+    ports:
+      - "5000:80"
+    environment:
+      FENCE_CONFIG_PATH: /var/www/fence/fence-config.yaml
+      GEN3_DEBUG: "true"
+      PROMETHEUS_MULTIPROC_DIR: /var/tmp/prometheus_metrics
+      PGHOST: gen3-postgres
+      PGPORT: 5432
+      PGDATABASE: fence_db
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    volumes:
+      - ./fence-config.yaml:/var/www/fence/fence-config.yaml:ro
+      - ./Secrets/fenceJwtKeys:/fence/keys:ro
+      - ./user_graphql.yaml:/var/www/fence/user.yaml:ro
+      - ./Secrets/oauth_clients:/var/www/fence/oauth_clients
+      - ./scripts/fence_setup.sh:/fence_setup.sh:ro
+    entrypoint: ["/bin/bash", "/fence_setup.sh"]
+    networks:
+      - gen3-network
+
+  arborist-service:
+    image: phansynguyen19/arborist-custom:v1
+    container_name: arborist-service
+    depends_on:
+      gen3-postgres:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    environment:
+      PGHOST: gen3-postgres
+      PGPORT: 5432
+      PGDATABASE: arborist_db
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGSSLMODE: disable
+      GEN3_DEBUG: "true"
+    volumes:
+      - ./scripts/arborist_setup.sh:/arborist_setup.sh:ro
+    working_dir: /go/src/github.com/uc-cdis/arborist
+    entrypoint: ["/bin/bash", "/arborist_setup.sh"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gen3-network
+  revproxy-service:
+    image: "quay.io/cdis/nginx:2021.03"
+    container_name: revproxy-service
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./Secrets/TLS:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost/_status" ]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - arborist-service
+      - fence-service
+    networks:
+      - gen3-network
+  # keycloak:
+  #   image: quay.io/keycloak/keycloak:24.0.3
+  #   container_name: keycloak
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8085:8080"
+  #   environment:
+  #     KC_DB: dev-mem
+  #     KC_HTTP_ENABLED: "true"
+  #     KEYCLOAK_ADMIN: admin
+  #     KEYCLOAK_ADMIN_PASSWORD: 123456
+  #   command: start-dev
+  #   volumes:
+  #     - keycloak_data:/opt/keycloak/data
+  #   networks:
+  #     - gen3-network
+volumes:
+  postgres_data:
+    # keycloak_data:
+
+
+networks:
+  gen3-network:
+    driver: bridge
