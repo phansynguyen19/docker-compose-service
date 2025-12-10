@@ -12,6 +12,7 @@ authz:
         - graphql-admin-policy
       users:
         - phansynguyen19@gmail.com
+        - testuser
 
     - name: developers
       description: 'Developers - can read and create via GraphQL'
@@ -223,6 +224,14 @@ users:
     tags:
       name: 'System Administrator'
       email: phansynguyen19@gmail.com
+      role: admin
+    policies:
+      - super_admin_policy
+      - graphql-admin-policy
+  testuser:
+    tags:
+      name: 'Test User (Keycloak)'
+      email: testuser@example.com
       role: admin
     policies:
       - super_admin_policy

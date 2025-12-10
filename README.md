@@ -15,6 +15,32 @@ cat Secrets/oauth_clients/fe_client.json
 
 ---
 
+## 🆕 Tính năng mới: Username/Password Login với Keycloak
+
+Ngoài Google OAuth, hệ thống giờ đây hỗ trợ **đăng nhập bằng username/password** thông qua Keycloak.
+
+### Quick Setup Keycloak
+
+Sau khi chạy `docker compose up -d`, chạy thêm:
+
+```bash
+# Linux/WSL
+./scripts/setup_keycloak.sh
+
+# Windows PowerShell
+wsl -d Ubuntu -e bash scripts/setup_keycloak.sh
+```
+
+### Test Login
+
+- **Keycloak Admin**: http://localhost:8085 (admin/admin123)
+- **Test User**: `testuser` / `testpassword`
+- **Login URL**: http://localhost/user/login
+
+👉 Xem chi tiết tại [docs/KEYCLOAK_LOGIN.md](docs/KEYCLOAK_LOGIN.md)
+
+---
+
 ## 📋 Mục lục
 
 - [Tổng quan](#tổng-quan)
@@ -23,7 +49,40 @@ cat Secrets/oauth_clients/fe_client.json
 - [Cấu hình](#cấu-hình)
 - [Sử dụng](#sử-dụng)
 - [Kiểm tra và Debug](#kiểm-tra-và-debug)
+- [Environment Variables](#environment-variables)
 - [Tham khảo](#tham-khảo)
+
+---
+
+## 🔧 Environment Variables
+
+Tất cả các biến cấu hình quan trọng được quản lý trong file `.env`. Khi deploy, chỉ cần chỉnh sửa file này.
+
+### Các biến chính:
+
+| Biến                      | Mô tả                          | Giá trị mặc định                              |
+| ------------------------- | ------------------------------ | --------------------------------------------- |
+| `BASE_URL`                | URL ngoài của services         | `http://localhost`                            |
+| `POSTGRES_USER`           | PostgreSQL username            | `postgres`                                    |
+| `POSTGRES_PASSWORD`       | PostgreSQL password            | `postgres`                                    |
+| `FENCE_PORT`              | Port expose cho Fence          | `5000`                                        |
+| `ARBORIST_PORT`           | Port expose cho Arborist       | `8080`                                        |
+| `KEYCLOAK_EXTERNAL_PORT`  | Port expose cho Keycloak       | `8085`                                        |
+| `KEYCLOAK_ADMIN_USER`     | Keycloak admin username        | `admin`                                       |
+| `KEYCLOAK_ADMIN_PASSWORD` | Keycloak admin password        | `admin123`                                    |
+| `CORS_ALLOWED_ORIGINS`    | CORS origins (comma-separated) | `http://127.0.0.1:3000,http://localhost:3000` |
+
+### Cách sử dụng:
+
+1. Copy file `.env.example` thành `.env` (nếu có)
+2. Chỉnh sửa các giá trị theo môi trường deploy
+3. Chạy `docker compose up -d`
+
+### Lưu ý quan trọng:
+
+- **nginx.conf**: Sử dụng `$http_origin` để tự động chấp nhận các origin từ localhost/127.0.0.1 với mọi port
+- **fence-config.yaml**: Một số giá trị cần chỉnh sửa trực tiếp trong file (xem comments trong file)
+- **Keycloak**: Các giá trị `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET` phải khớp với cấu hình trong `fence-config.yaml`
 
 ---
 
@@ -284,12 +343,13 @@ docker-compose-service/
 
 ### Services Configuration
 
-| Service              | Port    | Description                    |
-| -------------------- | ------- | ------------------------------ |
-| **fence-service**    | 5000    | Authentication & Authorization |
-| **arborist-service** | 8080    | Policy Management              |
-| **gen3-postgres**    | 5432    | PostgreSQL Database            |
-| **revproxy-service** | 80, 443 | Nginx Reverse Proxy            |
+| Service              | Port    | Description                       |
+| -------------------- | ------- | --------------------------------- |
+| **fence-service**    | 5000    | Authentication & Authorization    |
+| **arborist-service** | 8080    | Policy Management                 |
+| **gen3-postgres**    | 5432    | PostgreSQL Database               |
+| **revproxy-service** | 80, 443 | Nginx Reverse Proxy               |
+| **keycloak**         | 8085    | Identity Provider (Username/Pass) |
 
 ### Environment Variables
 

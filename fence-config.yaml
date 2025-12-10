@@ -13,6 +13,25 @@
 #   sections.
 #
 # NOTE: Login is NOT ready out of the box. Fill out REQUIRED configurations first
+#
+# ENVIRONMENT VARIABLES:
+# Many values in this config can be overridden by environment variables.
+# The following env vars are used:
+#   - BASE_URL: Base URL for fence service (default: http://localhost/user)
+#   - POSTGRES_HOST: PostgreSQL host (default: gen3-postgres)
+#   - POSTGRES_PORT: PostgreSQL port (default: 5432)
+#   - POSTGRES_USER: PostgreSQL user (default: postgres)
+#   - POSTGRES_PASSWORD: PostgreSQL password (default: postgres)
+#   - FENCE_DB_NAME: Fence database name (default: fence_db)
+#   - FENCE_ENCRYPTION_KEY: Encryption key for JWT
+#   - GOOGLE_CLIENT_ID: Google OAuth client ID
+#   - GOOGLE_CLIENT_SECRET: Google OAuth client secret
+#   - KEYCLOAK_CLIENT_ID: Keycloak client ID
+#   - KEYCLOAK_CLIENT_SECRET: Keycloak client secret
+#   - KEYCLOAK_EXTERNAL_PORT: Keycloak external port (browser access)
+#   - KEYCLOAK_SERVICE_HOST: Keycloak internal hostname
+#   - KEYCLOAK_REALM: Keycloak realm name
+#   - CORS_ALLOWED_ORIGINS: Comma-separated list of allowed CORS origins
 
 ########################################################################################
 #                               REQUIRED CONFIGURATIONS                                #
@@ -316,6 +335,38 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/shib/login'
+  # Keycloak - Local Username/Password Login
+  # ============================================================================
+  # KEYCLOAK CONFIGURATION
+  # When deploying, update these values to match your environment:
+  # - authorization_endpoint: Browser-accessible URL (external port)
+  # - token_endpoint, jwks_uri, userinfo_endpoint: Internal service URLs
+  # - client_id, client_secret: Must match Keycloak client configuration
+  # ============================================================================
+  keycloak:
+    name: 'Local Login'
+    # Use discovery instead of discovery_url because browser needs to access localhost:8085
+    # but Fence internally needs to access keycloak:8080 for token exchange
+    # Do NOT set discovery_url - use discovery block instead
+    discovery:
+      # authorization_endpoint is accessed by browser, so use external hostname/port
+      # For deployment, change 'localhost:8085' to your external Keycloak URL
+      authorization_endpoint: 'http://localhost:8085/realms/gen3/protocol/openid-connect/auth'
+      # token_endpoint is accessed by Fence (server-side), so use internal hostname
+      # 'keycloak:8080' is the internal Docker network address
+      token_endpoint: 'http://keycloak:8080/realms/gen3/protocol/openid-connect/token'
+      # jwks_uri is accessed by Fence (server-side), so use internal hostname  
+      jwks_uri: 'http://keycloak:8080/realms/gen3/protocol/openid-connect/certs'
+      # userinfo_endpoint is accessed by Fence (server-side), so use internal hostname
+      userinfo_endpoint: 'http://keycloak:8080/realms/gen3/protocol/openid-connect/userinfo'
+    # Must match KEYCLOAK_CLIENT_ID and KEYCLOAK_CLIENT_SECRET in .env
+    client_id: 'fence-client'
+    client_secret: 'fence-client-secret'
+    redirect_url: '{{BASE_URL}}/login/keycloak/login/'
+    scope: 'openid email profile'
+    user_id_field: 'preferred_username'
+    email_field: 'email'
+    enable_idp_users_registration: true
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
@@ -379,11 +430,13 @@ SESSION_ALLOWED_SCOPES:
 #   ^ [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
 # - Optional parameters: "desc" (description) and "secondary" (boolean - can
 #   be used by the frontend to display secondary buttons differently).
-LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
-  # - name: 'Login from Google'
-  #   desc: 'description'
-  #   idp: google
-  #   secondary: True
+LOGIN_OPTIONS:
+  - name: 'Login with Google'
+    desc: 'Sign in with your Google account'
+    idp: google
+  - name: 'Login with Username/Password'
+    desc: 'Sign in with local account'
+    idp: keycloak
   # - name: 'ORCID Login'
   #   idp: orcid
   # - name: 'Microsoft Login'
@@ -427,7 +480,7 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
 # - must be configured in LOGIN_OPTIONS and OPENID_CONNECT
 # - if several options in LOGIN_OPTIONS are defined for this IDP, will default
 # to the first one.
-DEFAULT_LOGIN_IDP: null
+DEFAULT_LOGIN_IDP: google
 
 # Default login URL: DEPRECATED and replaced by LOGIN_OPTIONS + DEFAULT_LOGIN_IDP configs
 # - Google? Use: '{{BASE_URL}}/login/google'
@@ -440,10 +493,17 @@ DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 # URLs for any registered OAuth clients, and its own URL. When validating the redirects,
 # fence chesk whether the domain for the redirect matches a domain in the whitelist (so
 # only the domains for the additional desired redirects are necessary here).
+# ============================================================================
+# LOGIN_REDIRECT_WHITELIST CONFIGURATION
+# Add all frontend URLs that need to redirect after login.
+# Must match CORS_ALLOWED_ORIGINS in .env for consistency.
+# ============================================================================
 #LOGIN_REDIRECT_WHITELIST: []
 LOGIN_REDIRECT_WHITELIST:
   - 'http://localhost:3000'
   - 'http://localhost:3000/callback'
+  - 'http://127.0.0.1:3000'
+  - 'http://127.0.0.1:3000/callback'
 
 ### DEPRECATED and replaced by OPENID_CONNECT + LOGIN_OPTIONS configs
 ENABLED_IDENTITY_PROVIDERS: {}
