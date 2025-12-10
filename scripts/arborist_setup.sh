@@ -8,9 +8,15 @@ echo "========================================="
 echo "Arborist Service Initialization"
 echo "========================================="
 
+# Use environment variables with defaults
+POSTGRES_HOST="${PGHOST:-gen3-postgres}"
+POSTGRES_USER="${PGUSER:-postgres}"
+ARBORIST_DB="${PGDATABASE:-arborist_db}"
+FENCE_HOST="${FENCE_SERVICE_HOST:-fence-service}"
+
 # Wait for Postgres to be ready using pg_isready (available in the image)
 echo "Waiting for PostgreSQL..."
-until pg_isready -h gen3-postgres -U postgres -d arborist_db > /dev/null 2>&1; do
+until pg_isready -h ${POSTGRES_HOST} -U ${POSTGRES_USER} -d ${ARBORIST_DB} > /dev/null 2>&1; do
     echo "PostgreSQL is unavailable - sleeping"
     sleep 2
 done
@@ -28,7 +34,7 @@ for migration_dir in ./migrations/20*/; do
         
         up_sql="${migration_dir}up.sql"
         if [ -f "$up_sql" ]; then
-            psql -h gen3-postgres -U postgres -d arborist_db -f "$up_sql" 2>/dev/null || true
+            psql -h ${POSTGRES_HOST} -U ${POSTGRES_USER} -d ${ARBORIST_DB} -f "$up_sql" 2>/dev/null || true
         fi
     fi
 done
@@ -44,4 +50,4 @@ echo ""
 # Start Arborist service
 exec /go/src/github.com/uc-cdis/arborist/bin/arborist \
     --port 80 \
-    --jwks http://fence-service:80/.well-known/jwks
+    --jwks http://${FENCE_HOST}:80/.well-known/jwks
